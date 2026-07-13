@@ -3,38 +3,35 @@ const { MongoClient } = require('mongodb');
 const cors = require('cors');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json()); 
 
-const uri = "mongodb://localhost:27017";
+const uri = "mongodb+srv://purnimatatina24_db_user:Leela%4019@cluster0.zcpo10k.mongodb.net/studentDB?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
 let studentsCollection;
 
-async function connectDB() {
+async function initDB() {
   await client.connect();
   const db = client.db("studentDB");
   studentsCollection = db.collection("students");
-  console.log("MongoDB Connected to studentDB database");
+  console.log("MongoDB Connected");
 }
-connectDB();
+initDB();
 
-// GET ALL
-app.get('/students', async (req, res) => {
+app.get('/', async (req, res) => {
   const students = await studentsCollection.find({}).toArray();
   res.json(students);
 });
 
-// GET ONE
-app.get('/students/:id', async (req, res) => {
+app.get('/:id', async (req, res) => {
   const student = await studentsCollection.findOne({ id: parseInt(req.params.id) });
   if(!student) return res.status(404).json({error: "Not Found"})
   res.json(student);
 });
 
-// POST - ADD
-app.post('/students', async (req, res) => {
+app.post('/', async (req, res) => {
   const lastStudent = await studentsCollection.find({}).sort({id: -1}).limit(1).toArray();
   const newId = lastStudent.length > 0? lastStudent[0].id + 1 : 1;
   const newStudent = {...req.body, id: newId };
@@ -42,31 +39,20 @@ app.post('/students', async (req, res) => {
   res.json(newStudent);
 });
 
-// PUT - EDIT
-app.put('/students/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-    delete data._id; 
-    delete data.id;
-    
-    await studentsCollection.updateOne(
-      { id: parseInt(id) }, // FIXED: studentsCollection + parseInt
-      { $set: data }
-    )
-    res.json({success: true})
-  } catch(err) {
-    console.log(err)
-    res.status(500).json({error: err.message})
-  }
+app.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+  delete data._id; 
+  delete data.id;
+  await studentsCollection.updateOne({ id: parseInt(id) }, { $set: data })
+  res.json({success: true})
 })
 
-// DELETE
-app.delete('/students/:id', async (req, res) => {
-  const result = await studentsCollection.deleteOne({ id: parseInt(req.params.id) });
-  res.json({ message: "Deleted", result });
+app.delete('/:id', async (req, res) => {
+  await studentsCollection.deleteOne({ id: parseInt(req.params.id) });
+  res.json({ message: "Deleted" });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on ${PORT}`);
 });
